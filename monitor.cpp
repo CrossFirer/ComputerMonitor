@@ -29,7 +29,7 @@
 #pragma comment(lib, "ole32.lib")
 #pragma comment(lib, "oleaut32.lib")
 
-#define REFRESH_INTERVAL 1000 // 1秒刷新一次
+#define REFRESH_INTERVAL 2 // 约60FPS的刷新频率
 
 // 定义从LPARAM中提取鼠标坐标的宏
 #ifndef GET_X_LPARAM
@@ -49,6 +49,10 @@
 #endif
 
 // DPI感知函数已经通过windows.h头文件包含
+
+// 配置项
+#define MIN_WINDOW_WIDTH 1050  // 最小窗口宽度
+#define WINDOW_MARGIN 60      // 窗口边距
 
 // 全局变量
 HINSTANCE g_hInstance;
@@ -629,133 +633,158 @@ static std::wstring formatSpeed(float bytesPerSecond) {
     return ss.str();
 }
 
-// 计算FPS
-static int GetFPS() {
-    static int frameCount = 0;
-    static DWORD lastTime = 0;
-    DWORD currentTime = GetTickCount();
-
-    frameCount++;
-    if (currentTime - lastTime >= 1000) {
-        int fps = frameCount;
-        frameCount = 0;
-        lastTime = currentTime;
-        return fps;
-    }
-    return 0;
-}
+// 移除FPS相关代码
 
 // 数据采集线程函数
 static DWORD WINAPI DataCollectionThread(LPVOID lpParam) {
+    static int updateCount = 0;
     while (!g_shouldExit) {
         try {
-            // 记录开始时间，用于超时检测
-            DWORD startTime = GetTickCount();
-            
-            // 获取各监控数据
-            int fps = GetFPS();
-            
-            float cpuUsage = 0.0f;
-            if (GetTickCount() - startTime < 50) {
-                cpuUsage = getCPUUsage();
-            }
-            
-            float cpuTemp = 0.0f;
-            if (GetTickCount() - startTime < 100) {
-                cpuTemp = getCPUTemperature();
-            }
-            
-            double cpuFreq = 0.0;
-            if (GetTickCount() - startTime < 150) {
-                cpuFreq = getCPUFrequency();
-            }
-            
-            float gpuUsage = 0.0f;
-            if (GetTickCount() - startTime < 200) {
-                gpuUsage = getGPUUsage();
-            }
-            
-            float gpuTemp = 0.0f;
-            if (GetTickCount() - startTime < 250) {
-                gpuTemp = getGPUTemperature();
-            }
-            
-            std::pair<float, float> gpuMem = {0.0f, 0.0f};
-            if (GetTickCount() - startTime < 300) {
-                gpuMem = getGPUMemory();
-            }
-            
-            std::tuple<float, float, float> mem = {0.0f, 0.0f, 0.0f};
-            if (GetTickCount() - startTime < 350) {
-                mem = getMemoryUsage();
-            }
-            
-            std::pair<float, float> net = {0.0f, 0.0f};
-            if (GetTickCount() - startTime < 400) {
-                net = getNetworkSpeed();
-            }
+            // 每60次循环（约1秒）更新一次其他监控数据和界面
+            if (updateCount % 60 == 0) {
+                // 记录开始时间，用于超时检测
+                DWORD startTime = GetTickCount();
+                
+                float cpuUsage = 0.0f;
+                if (GetTickCount() - startTime < 50) {
+                    cpuUsage = getCPUUsage();
+                }
+                
+                float cpuTemp = 0.0f;
+                if (GetTickCount() - startTime < 100) {
+                    cpuTemp = getCPUTemperature();
+                }
+                
+                double cpuFreq = 0.0;
+                if (GetTickCount() - startTime < 150) {
+                    cpuFreq = getCPUFrequency();
+                }
+                
+                float gpuUsage = 0.0f;
+                if (GetTickCount() - startTime < 200) {
+                    gpuUsage = getGPUUsage();
+                }
+                
+                float gpuTemp = 0.0f;
+                if (GetTickCount() - startTime < 250) {
+                    gpuTemp = getGPUTemperature();
+                }
+                
+                std::pair<float, float> gpuMem = {0.0f, 0.0f};
+                if (GetTickCount() - startTime < 300) {
+                    gpuMem = getGPUMemory();
+                }
+                
+                std::tuple<float, float, float> mem = {0.0f, 0.0f, 0.0f};
+                if (GetTickCount() - startTime < 350) {
+                    mem = getMemoryUsage();
+                }
+                
+                std::pair<float, float> net = {0.0f, 0.0f};
+                if (GetTickCount() - startTime < 400) {
+                    net = getNetworkSpeed();
+                }
 
-            // 格式化输出
-            std::wstringstream ss;
-            ss << L"FPS " << fps << L" CPU " << std::fixed << std::setprecision(1) << cpuUsage << L"% "
-               << std::fixed << std::setprecision(1) << cpuTemp << L"°C "
-               << std::fixed << std::setprecision(2) << cpuFreq << L"GHz "
-               << L"显卡 " << std::fixed << std::setprecision(1) << gpuUsage << L"% "
-               << std::fixed << std::setprecision(1) << gpuTemp << L"°C "
-               << std::fixed << std::setprecision(1) << gpuMem.first << L"GB/" << gpuMem.second << L"GB "
-               << L"内存 " << std::fixed << std::setprecision(1) << std::get<0>(mem) << L"% "
-               << std::fixed << std::setprecision(1) << std::get<1>(mem) << L"GB/" << std::get<2>(mem) << L"GB "
-               << L"网络 ↑ " << formatSpeed(net.first) << L" ↓ " << formatSpeed(net.second);
+                // 格式化输出
+                std::wstringstream ss;
+                ss << L"CPU " << std::fixed << std::setprecision(1) << cpuUsage << L"% "
+                   << std::fixed << std::setprecision(1) << cpuTemp << L"°C "
+                   << std::fixed << std::setprecision(2) << cpuFreq << L"GHz "
+                   << L"显卡 " << std::fixed << std::setprecision(1) << gpuUsage << L"% "
+                   << std::fixed << std::setprecision(1) << gpuTemp << L"°C "
+                   << std::fixed << std::setprecision(1) << gpuMem.first << L"GB/" << gpuMem.second << L"GB "
+                   << L"内存 " << std::fixed << std::setprecision(1) << std::get<0>(mem) << L"% "
+                   << std::fixed << std::setprecision(1) << std::get<1>(mem) << L"GB/" << std::get<2>(mem) << L"GB "
+                   << L"网络 ↑ " << formatSpeed(net.first) << L" ↓ " << formatSpeed(net.second);
 
-            // 更新全局数据
-            std::lock_guard<std::mutex> lock(g_dataMutex);
-            wcscpy(g_monitorData, ss.str().c_str());
-
-            // 调整窗口大小
-            if (g_hWnd) {
-                // 创建临时DC来计算文本宽度
-                HDC hdc = GetDC(g_hWnd);
-                if (hdc) {
-                    // 创建字体
-                    HFONT hFont = CreateFont(
-                        12, 0, 0, 0, FW_BOLD,
-                        FALSE, FALSE, FALSE, GB2312_CHARSET,
-                        OUT_OUTLINE_PRECIS, CLIP_DEFAULT_PRECIS,
-                        CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_SWISS,
-                        "Courier New"
-                    );
-                    
-                    if (hFont) {
-                        // 选择字体
-                        HFONT hOldFont = (HFONT)SelectObject(hdc, hFont);
+                // 更新全局数据
+                std::lock_guard<std::mutex> lock(g_dataMutex);
+                // 简化字符串复制，确保不会导致缓冲区溢出
+                std::wstring text = ss.str();
+                if (text.empty()) {
+                    // 如果文本为空，设置一个默认值
+                    text = L"数据获取中，等着。。。。。。";
+                }
+                // 确保字符串长度不超过缓冲区大小
+                size_t maxLength = sizeof(g_monitorData) / sizeof(wchar_t) - 1;
+                if (text.length() > maxLength) {
+                    text = text.substr(0, maxLength);
+                }
+                // 复制字符串到全局变量
+                wcscpy(g_monitorData, text.c_str());
+            }
+            
+            // 每10次循环（约160毫秒）调整一次窗口大小，确保窗口宽度能及时适应内容变化
+            if (updateCount % 10 == 0) {
+                // 调整窗口大小，实现真正的自适应宽度
+                static int lastWidth = 0;
+                if (g_hWnd) {
+                    // 创建临时DC来计算文本宽度
+                    HDC hdc = GetDC(g_hWnd);
+                    if (hdc) {
+                        // 创建与窗口相同的字体来计算文本宽度
+                        HFONT hFont = CreateFont(
+                            12, 0, 0, 0, FW_BOLD,
+                            FALSE, FALSE, FALSE, GB2312_CHARSET,
+                            OUT_OUTLINE_PRECIS, CLIP_DEFAULT_PRECIS,
+                            CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_SWISS,
+                            "Courier New"
+                        );
                         
-                        // 计算文本宽度
-                        SIZE textSize;
-                        GetTextExtentPoint32W(hdc, g_monitorData, wcslen(g_monitorData), &textSize);
+                        if (hFont) {
+                            // 选择字体到DC
+                            HFONT hOldFont = (HFONT)SelectObject(hdc, hFont);
+                            
+                            // 使用选定的字体计算文本宽度
+                            SIZE textSize;
+                            int textLength = wcslen(g_monitorData);
+                            if (textLength > 0) {
+                                // 计算文本宽度
+                                GetTextExtentPoint32W(hdc, g_monitorData, textLength, &textSize);
+                                
+                                // 计算窗口宽度，确保足够容纳所有内容
+                                int newWidth = textSize.cx + WINDOW_MARGIN; // 使用配置的边距
+                                
+                                // 确保窗口宽度至少为配置的最小宽度，避免窗口变得太小
+                                if (newWidth < MIN_WINDOW_WIDTH) {
+                                    newWidth = MIN_WINDOW_WIDTH;
+                                }
+                                
+                                // 只在宽度确实需要改变时才调整窗口大小
+                                if (newWidth != lastWidth) {
+                                    // 先获取当前窗口位置，保持顶部位置不变
+                                    RECT currentRect;
+                                    GetWindowRect(g_hWnd, &currentRect);
+                                    
+                                    // 计算新的窗口X坐标，使其居中显示
+                                    int screenWidth = GetSystemMetrics(SM_CXSCREEN);
+                                    int newX = (screenWidth - newWidth) / 2;
+                                    
+                                    // 调整窗口大小和位置
+                                    SetWindowPos(g_hWnd, nullptr, newX, currentRect.top, newWidth, 40, SWP_NOZORDER);
+                                    lastWidth = newWidth;
+                                }
+                            }
+                            
+                            // 恢复旧字体并删除创建的字体
+                            SelectObject(hdc, hOldFont);
+                            DeleteObject(hFont);
+                        }
                         
-                        // 恢复旧字体
-                        SelectObject(hdc, hOldFont);
-                        DeleteObject(hFont);
-                        
-                        // 调整窗口大小
-                        RECT wndRect;
-                        GetWindowRect(g_hWnd, &wndRect);
-                        int newWidth = textSize.cx + 40; // 40像素边距
-                        int screenWidth = GetSystemMetrics(SM_CXSCREEN);
-                        int newX = (screenWidth - newWidth) / 2;
-                        
-                        SetWindowPos(g_hWnd, nullptr, newX, wndRect.top, newWidth, 40, SWP_NOZORDER);
+                        ReleaseDC(g_hWnd, hdc);
                     }
-                    
-                    ReleaseDC(g_hWnd, hdc);
                 }
             }
+            
+            updateCount++;
         } catch (...) {
             // 防止异常导致线程崩溃
+            // 即使发生异常，也要增加updateCount，避免无限循环执行同一代码块
+            updateCount++;
         }
 
-        // 休眠1秒
-        Sleep(1000);
+        // 休眠16毫秒，约60FPS的频率
+        Sleep(16);
     }
 
     return 0;
@@ -792,6 +821,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
                 "Courier New"
             );
             
+            
+            
             // 启动数据采集线程
             g_dataThreadRunning = true;
             HANDLE hThread = CreateThread(nullptr, 0, DataCollectionThread, nullptr, 0, nullptr);
@@ -813,31 +844,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
             // 获取文本
             std::lock_guard<std::mutex> lock(g_dataMutex);
             std::wstring text = g_monitorData;
-            
-            // 创建临时DC来计算文本宽度
-            HDC tempDC = GetDC(hWnd);
-            if (tempDC) {
-                // 选择字体
-                HFONT hOldFont = (HFONT)SelectObject(tempDC, hFont);
-                
-                // 计算文本宽度
-                SIZE textSize;
-                GetTextExtentPoint32W(tempDC, g_monitorData, wcslen(g_monitorData), &textSize);
-                
-                // 恢复旧字体
-                SelectObject(tempDC, hOldFont);
-                ReleaseDC(hWnd, tempDC);
-                
-                // 调整窗口大小
-                RECT wndRect;
-                GetWindowRect(hWnd, &wndRect);
-                int newWidth = textSize.cx + 40; // 40像素边距
-                int screenWidth = GetSystemMetrics(SM_CXSCREEN);
-                int newX = (screenWidth - newWidth) / 2;
-                
-                // 确保窗口宽度足够容纳所有文本
-                SetWindowPos(hWnd, nullptr, newX, wndRect.top, newWidth, 40 * g_dpiScale / 100, SWP_NOZORDER);
-            }
             
             // 获取窗口大小
             RECT rect;
