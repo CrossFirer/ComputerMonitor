@@ -40,8 +40,8 @@
 #define GET_Y_LPARAM(lp) ((int)(short)HIWORD(lp))
 #endif
 
-// 确保程序被编译为控制台应用程序
-// #pragma comment(linker, "/subsystem:windows /entry:WinMainCRTStartup")
+// 确保程序被编译为Windows应用程序，不显示命令行窗口
+#pragma comment(linker, "/subsystem:windows /entry:WinMainCRTStartup")
 
 // 启用DPI感知
 #if defined(_MSC_VER)
