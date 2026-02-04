@@ -1,6 +1,9 @@
 # 横幅监控软件
 
 一款基于C++和Windows API开发的系统监控软件，以半透明横幅形式显示在屏幕顶部，实时监控系统各项指标。
+# 效果图
+<img width="1050" height="40" alt="image" src="https://github.com/user-attachments/assets/363ff42f-a078-49f3-bcf0-7350b7b45984" />
+
 
 ## 功能特性
 
